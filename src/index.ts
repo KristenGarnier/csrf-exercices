@@ -1,43 +1,101 @@
 import { Hono } from 'hono'
+import {
+  Session,
+  sessionMiddleware,
+  CookieStore,
+} from 'hono-sessions'
 import { serve } from '@hono/node-server'
-import session from 'hono-session'
-import { csrf } from 'hono/csrf'
 
-const app = new Hono()
+import { setCSRFProtection, validateCSRFTokens } from './middlewares/csrf.ts'
+import { sessionCsrf } from './middlewares/session.ts'
 
-// TODO: Configurer la session middleware
-// Indice: utilisez app.use() avec le middleware session avec hono session
+export type SessionDataTypes = {
+  'userToken': string
+}
 
-// TODO: Créer le middleware CSRF
-// Indice: utilisez la fonction csrf() de Hono
+const app = new Hono<{
+  Variables: {
+    session: Session<SessionDataTypes>,
+    session_key_rotation: boolean,
+    csrfToken: string
+  }
+}>()
 
-// Route pour afficher le formulaire
-app.get('/form', async (c) => {
-  // TODO: Protéger cette route avec le middleware CSRF
-  // TODO: Récupérer le token CSRF
-  // TODO: L'inclure dans le formulaire
+const store = new CookieStore()
+
+
+// Configuration de la session
+app.use('*', sessionMiddleware({
+  store,
+  encryptionKey: 'password_at_least_32_characters_long', // Required for CookieStore, recommended for others
+  expireAfterSeconds: 900, // Expire session after 15 minutes of inactivity
+  cookieOptions: {
+    sameSite: 'Lax', // Recommended for basic CSRF protection in modern browsers
+    path: '/', // Required for this library to work properly
+    httpOnly: true, // Recommended to avoid XSS attacks
+  },
+}))
+
+
+app.use(sessionCsrf);
+
+
+// Route pour afficher le formulaire avec protection CSRF
+app.get('/form', setCSRFProtection, async (c) => {
+  // On récupère le token depuis le middleware
+  const token = c.var.csrfToken
+
   return c.html(`
-    <form method="POST" action="/submit">
-      <!-- TODO: Ajouter le champ caché pour le token CSRF -->
-      <input type="text" name="username" placeholder="Nom d'utilisateur">
-      <input type="password" name="password" placeholder="Mot de passe">
-      <button type="submit">Se connecter</button>
-    </form>
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Formulaire sécurisé</title>
+    </head>
+    <body>
+      <h1>Formulaire avec protection CSRF</h1>
+      <form method="POST" action="/submit">
+        <input type="hidden" name="_csrfToken" value="${token}">
+        <div>
+          <label for="username">Nom d'utilisateur:</label>
+          <input type="text" id="username" name="username" required>
+        </div>
+        <div>
+          <label for="password">Mot de passe:</label>
+          <input type="password" id="password" name="password" required>
+        </div>
+        <button type="submit">Se connecter</button>
+      </form>
+    </body>
+    </html>
   `)
 })
 
-// Route pour traiter le formulaire
-app.post('/submit', async (c) => {
-  // TODO: Protéger cette route avec le middleware CSRF
+// Route pour traiter le formulaire avec protection CSRF
+app.post('/submit', validateCSRFTokens, async (c) => {
   try {
     const data = await c.req.parseBody()
-    // Simulation de traitement
-    return c.json({ success: true, message: 'Formulaire traité avec succès' })
+
+    // Simulation d'une vérification d'authentification mauvaise, mais ce n'est pas le propos de cet exercice
+    if (data.username && data.password) {
+      return c.json({
+        success: true,
+        message: 'Formulaire traité avec succès',
+        user: data.username
+      })
+    } else {
+      return c.json({
+        success: false,
+        message: 'Données manquantes'
+      }, 400)
+    }
   } catch (error) {
-    return c.json({ success: false, message: 'Erreur de traitement' }, 400)
+    return c.json({
+      success: false,
+      message: 'Erreur lors du traitement du formulaire'
+    }, 500)
   }
 })
 
-serve(app)
+serve(app);
 
 export default app

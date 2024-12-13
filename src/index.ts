@@ -6,8 +6,10 @@ import {
 } from 'hono-sessions'
 import { serve } from '@hono/node-server'
 
-import { setCSRFProtection, validateCSRFTokens } from './middlewares/csrf.ts'
-import { sessionCsrf } from './middlewares/session.ts'
+import { setCSRFProtection, validateCSRFTokens } from './middlewares/csrf'
+import { sessionCsrf } from './middlewares/session'
+import { SESSION_KEY } from './const/env'
+
 
 export type SessionDataTypes = {
   'userToken': string
@@ -27,7 +29,7 @@ const store = new CookieStore()
 // Configuration de la session
 app.use('*', sessionMiddleware({
   store,
-  encryptionKey: 'password_at_least_32_characters_long', // Required for CookieStore, recommended for others
+  encryptionKey: SESSION_KEY, // Required for CookieStore, recommended for others
   expireAfterSeconds: 900, // Expire session after 15 minutes of inactivity
   cookieOptions: {
     sameSite: 'Lax', // Recommended for basic CSRF protection in modern browsers

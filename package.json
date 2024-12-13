@@ -7,8 +7,7 @@
   "dependencies": {
     "@hono/node-server": "^1.13.7",
     "hono": "^4.6.13",
-    "hono-session": "^1.2.0",
-    "nanoid": "^5.0.9"
+    "hono-sessions": "^0.7.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.17",

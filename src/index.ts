@@ -1,15 +1,14 @@
 import { Hono } from 'hono'
 import { serve } from '@hono/node-server'
-import session from 'hono-session'
-import { csrf } from 'hono/csrf'
+import session from 'hono-sessions'
 
 const app = new Hono()
 
 // TODO: Configurer la session middleware
-// Indice: utilisez app.use() avec le middleware session avec hono session
+// Indice: utilisez app.use() avec le middleware session avec hono-sessions
 
-// TODO: Créer le middleware CSRF
-// Indice: utilisez la fonction csrf() de Hono
+// TODO: Créer les middlewares CSRF
+// Indice: Créez deux middleware : un pour créer le token, l'autre pour vérifier si le token est bien bon après un envoi de formulaire
 
 // Route pour afficher le formulaire
 app.get('/form', async (c) => {

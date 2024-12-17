@@ -6,6 +6,7 @@ import {
 import type { SessionDataTypes } from '../index.ts'
 import crypto from 'node:crypto'
 import { createMiddleware } from 'hono/factory'
+import { COOKIE_KEY, HMAC_KEY } from '../const/env.ts'
 
 // définition de la protection CSRF pour le formulaire
 export const setCSRFProtection = createMiddleware<{
@@ -23,12 +24,12 @@ export const setCSRFProtection = createMiddleware<{
   }
 
   const fullToken = `${userToken.length}!${userToken}!${csrfToken.length}!${csrfToken}`; // on concatène des informations pour créer une chaine de caractère avec le token user et le token csrf
-  const hashedValue = crypto.createHmac("sha256", "hello").update(fullToken).digest("hex"); // on la hash pour que le cookie soit totalement opaque
+  const hashedValue = crypto.createHmac("sha256", HMAC_KEY).update(fullToken).digest("hex"); // on la hash pour que le cookie soit totalement opaque
 
 
   // on utilise le setSignedCookie pour enregistrer le token et le signer
   await setSignedCookie(c, 'csrfToken', `${hashedValue}.${crypto.randomBytes(12).toString('hex') // on ajoute une valeur random pour éviter les collision entre éventuels tokensn 
-    }`, 'hello', {
+    }`, COOKIE_KEY, {
     secure: process.env.NODE_ENV === 'production',
     //domain: 'example.com', you should use this in production
     httpOnly: true,
@@ -44,7 +45,7 @@ export const setCSRFProtection = createMiddleware<{
 
 // on utilsie un middleware de validation de token
 export const validateCSRFTokens = createMiddleware(async (c, next) => {
-  const fullCsrfToken = await getSignedCookie(c, 'hello', "csrfToken") // on récupère le token généré précedemment
+  const fullCsrfToken = await getSignedCookie(c, COOKIE_KEY, "csrfToken") // on récupère le token généré précedemment
   if (!fullCsrfToken) { return c.text('Form does not have protection') } // on vérifie que l'on a bien le csrf token sinon cela veut dire que le formulaire n'était pas protégé 
 
   const csrfToken = fullCsrfToken.split('.')[0]; // on le split pour récupérer que le token et enlever le random de collision
@@ -59,7 +60,7 @@ export const validateCSRFTokens = createMiddleware(async (c, next) => {
 
   // on reconstruit un token et le reash pour pouvoir vérifier qu'il correspond bien à celui de notre cookie
   const fullToken = `${userToken.length}!${userToken}!${tokenForm.length}!${tokenForm}`;
-  const hmacRecreation = crypto.createHmac("sha256", "hello").update(fullToken).digest("hex");
+  const hmacRecreation = crypto.createHmac("sha256", HMAC_KEY).update(fullToken).digest("hex");
 
   if (hmacRecreation === csrfToken) {
     await next()
